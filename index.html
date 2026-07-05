@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>记事日历</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5B8DEF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#5B8DEF;
+  --primary-light:#EBF1FC;
+  --danger:#FF6B6B;
+  --success:#34D399;
+  --warning:#F59E0B;
+  --bg:#F0F4F8;
+  --card:#FFFFFF;
+  --text:#1F2937;
+  --text2:#6B7280;
+  --text3:#9CA3AF;
+  --border:#E5E7EB;
+  --radius:12px;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);
+  --nav-h:64px;
+  --header-h:56px;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#app{
+  max-width:500px;
+  margin:0 auto;
+  min-height:100vh;
+  min-height:100dvh;
+  padding-bottom:var(--nav-h);
+  position:relative;
+  background:var(--bg);
+}
+header{
+  position:sticky;top:0;z-index:100;
+  background:var(--primary);
+  color:#fff;
+  padding:12px 20px;
+  padding-top:max(12px, env(safe-area-inset-top));
+  border-radius:0 0 20px 20px;
+  box-shadow:0 4px 20px rgba(91,141,239,0.3);
+}
+header h1{font-size:20px;font-weight:700;letter-spacing:0.5px}
+header .date-display{font-size:13px;opacity:0.85;margin-top:2px}
+.countdown-banner{
+  margin:16px 16px 0;
+  background:linear-gradient(135deg,#FFF5F5,#FFE8E8);
+  border:1.5px solid #FFD0D0;
+  border-radius:var(--radius);
+  padding:14px 18px;
+  display:none;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+.countdown-banner .label{font-size:11px;color:#E53E3E;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.countdown-banner .title{font-size:17px;font-weight:700;color:#C53030;margin:4px 0}
+.countdown-banner .days{font-size:36px;font-weight:800;color:#E53E3E;line-height:1}
+.countdown-banner .days span{font-size:14px;font-weight:500}
+.tab-content{display:none;padding:16px}
+.tab-content.active{display:block}
+/* Calendar */
+.month-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;
+}
+.month-nav button{
+  background:var(--card);border:1px solid var(--border);
+  width:36px;height:36px;border-radius:50%;
+  font-size:18px;cursor:pointer;color:var(--text);
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.month-nav button:active{background:var(--primary-light);border-color:var(--primary)}
+.month-nav .month-label{font-size:17px;font-weight:700}
+.weekday-headers{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:4px}
+.weekday-headers span{font-size:12px;color:var(--text3);font-weight:600;padding:6px 0}
+.weekday-headers span.weekend{color:var(--danger)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.calendar-grid .cell{
+  aspect-ratio:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:10px;cursor:pointer;position:relative;
+  font-size:14px;font-weight:500;transition:all 0.15s;
+}
+.calendar-grid .cell:hover{background:var(--primary-light)}
+.calendar-grid .cell.empty{cursor:default}
+.calendar-grid .cell.empty:hover{background:transparent}
+.calendar-grid .cell.today{background:var(--primary);color:#fff;font-weight:700}
+.calendar-grid .cell.selected{box-shadow:inset 0 0 0 2px var(--primary)}
+.calendar-grid .cell .dots{display:flex;gap:2px;margin-top:2px}
+.calendar-grid .cell .dot{
+  width:4px;height:4px;border-radius:50%;
+  background:var(--primary);
+}
+.calendar-grid .cell.today .dot{background:#fff}
+/* Countdown cards */
+.countdown-list{display:flex;flex-direction:column;gap:10px}
+.countdown-card{
+  background:var(--card);border-radius:var(--radius);
+  padding:14px 16px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:14px;
+}
+.countdown-card .left{
+  min-width:56px;height:56px;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:800;
+}
+.countdown-card .left.urgent{background:#FEE2E2;color:#DC2626}
+.countdown-card .left.soon{background:#FEF3C7;color:#D97706}
+.countdown-card .left.normal{background:#DBEAFE;color:#2563EB}
+.countdown-card .left.n {font-size:26px;line-height:1}
+.countdown-card .left.nu{font-size:10px}
+.countdown-card .info{flex:1;min-width:0}
+.countdown-card .info .t{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.countdown-card .info .d{font-size:12px;color:var(--text3);margin-top:2px}
+.countdown-card .check{font-size:22px;color:var(--text3);cursor:pointer}
+.countdown-card .check:active{color:var(--success)}
+/* Task list */
+.task-form{display:flex;gap:8px;margin-bottom:16px}
+.task-form input{
+  flex:1;padding:10px 14px;border:1.5px solid var(--border);
+  border-radius:var(--radius);font-size:15px;outline:none;
+  background:var(--card);
+}
+.task-form input:focus{border-color:var(--primary)}
+.task-form input::placeholder{color:var(--text3)}
+.task-form button{
+  padding:10px 18px;background:var(--primary);color:#fff;
+  border:none;border-radius:var(--radius);font-size:15px;font-weight:600;
+  cursor:pointer;white-space:nowrap;
+}
+.task-form button:active{opacity:0.85}
+.task-list{display:flex;flex-direction:column;gap:8px}
+.task-item{
+  background:var(--card);border-radius:var(--radius);
+  padding:14px 16px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:12px;transition:all 0.3s;
+}
+.task-item.done{opacity:0.5}
+.task-item.done .t{text-decoration:line-through}
+.task-item .cb{
+  width:22px;height:22px;border:2px solid var(--border);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all 0.2s;
+  font-size:14px;color:transparent;
+}
+.task-item.done .cb{background:var(--success);border-color:var(--success);color:#fff}
+.task-item .info{flex:1;min-width:0}
+.task-item .info .t{font-size:15px;font-weight:500}
+.task-item .info .d{font-size:12px;color:var(--text3);margin-top:2px}
+.task-item .del{color:var(--text3);cursor:pointer;font-size:18px;padding:4px}
+.task-item .del:active{color:var(--danger)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .icon{font-size:48px}
+.empty-state .msg{font-size:14px;margin-top:8px}
+/* History */
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{
+  background:var(--card);border-radius:var(--radius);
+  padding:12px 16px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:12px;
+}
+.history-item .icon{font-size:22px}
+.history-item .info{flex:1}
+.history-item .info .t{font-size:14px;font-weight:500}
+.history-item .info .d{font-size:11px;color:var(--text3);margin-top:2px}
+/* Bottom nav */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  max-width:500px;margin:0 auto;
+  background:var(--card);border-top:1px solid var(--border);
+  display:flex;height:var(--nav-h);
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bottom-nav button{
+  flex:1;border:none;background:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--text3);font-size:10px;gap:4px;transition:color 0.15s;
+}
+.bottom-nav button .ico{font-size:22px}
+.bottom-nav button.active{color:var(--primary)}
+/* Modal */
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,0.4);align-items:flex-end;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--card);border-radius:20px 20px 0 0;
+  width:100%;max-width:500px;padding:20px;
+  animation:slideUp 0.3s ease;
+  max-height:80vh;overflow-y:auto;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h3{font-size:18px;margin-bottom:16px}
+.modal .form-group{margin-bottom:14px}
+.modal .form-group label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px;font-weight:600}
+.modal .form-group input,.modal .form-group textarea{
+  width:100%;padding:10px 14px;border:1.5px solid var(--border);
+  border-radius:10px;font-size:15px;outline:none;background:var(--bg);
+}
+.modal .form-group input:focus,.modal .form-group textarea:focus{border-color:var(--primary)}
+.modal .form-group textarea{resize:vertical;min-height:60px}
+.modal .btn-row{display:flex;gap:10px;margin-top:16px}
+.modal .btn-row button{
+  flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:600;
+  cursor:pointer;border:none;
+}
+.modal .btn-row .cancel{background:var(--bg);color:var(--text)}
+.modal .btn-row .confirm{background:var(--primary);color:#fff}
+.modal .btn-row .confirm:active{opacity:0.85}
+/* Toast */
+#toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  background:#333;color:#fff;padding:10px 24px;border-radius:24px;
+  font-size:14px;z-index:999;opacity:0;transition:opacity 0.3s;
+  pointer-events:none;
+}
+#toast.show{opacity:1}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* Desktop bigger screen - center the app */
+@media(min-width:501px){
+  body{background:#E5E7EB}
+  #app{box-shadow:0 0 40px rgba(0,0,0,0.1)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>记事日历</h1>
+  <div class="date-display" id="todayDisplay"></div>
+</header>
+
+<div class="countdown-banner" id="banner">
+  <div class="label">即将到来</div>
+  <div class="title" id="bannerTitle"></div>
+  <div class="days" id="bannerDays"></div>
+</div>
+
+<div class="tab-content active" id="tab-calendar">
+  <div class="month-nav">
+    <button onclick="prevMonth()">◀</button>
+    <span class="month-label" id="monthLabel"></span>
+    <button onclick="nextMonth()">▶</button>
+  </div>
+  <div class="weekday-headers">
+    <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span>
+    <span class="weekend">六</span><span class="weekend">日</span>
+  </div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+  <div style="margin-top:12px;background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)" id="selectedDayInfo">
+    <div style="color:var(--text3);font-size:13px">点击日历上的日期查看或添加事项</div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-countdown">
+  <div class="countdown-list" id="countdownList">
+    <div class="empty-state"><div class="icon">⏳</div><div class="msg">暂无倒计时<br>去日历添加一个待办事项吧</div></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-tasks">
+  <div class="task-form">
+    <input type="text" id="quickTaskInput" placeholder="输入待办事项，回车添加…">
+    <button onclick="addQuickTask()">添加</button>
+  </div>
+  <div class="task-list" id="taskList">
+    <div class="empty-state"><div class="icon">📋</div><div class="msg">暂无待办事项</div></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-history">
+  <div class="history-list" id="historyList">
+    <div class="empty-state"><div class="icon">📝</div><div class="msg">暂无完成记录<br>完成一个待办后就会出现在这里</div></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <button data-tab="calendar" class="active" onclick="switchTab('calendar')">
+    <span class="ico">📅</span>日历
+  </button>
+  <button data-tab="countdown" onclick="switchTab('countdown')">
+    <span class="ico">⏳</span>倒计时
+  </button>
+  <button data-tab="tasks" onclick="switchTab('tasks')">
+    <span class="ico">✅</span>待办
+  </button>
+  <button data-tab="history" onclick="switchTab('history')">
+    <span class="ico">📋</span>记录
+  </button>
+</div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <h3 id="modalTitle">添加事项</h3>
+    <div class="form-group">
+      <label>事项名称</label>
+      <input type="text" id="modalTaskTitle" placeholder="例如：买生日礼物">
+    </div>
+    <div class="form-group">
+      <label>日期</label>
+      <input type="date" id="modalTaskDate">
+    </div>
+    <div class="form-group">
+      <label>时间（可选）</label>
+      <input type="time" id="modalTaskTime">
+    </div>
+    <div class="form-group">
+      <label>备注（可选）</label>
+      <textarea id="modalTaskNote" placeholder="写点什么…"></textarea>
+    </div>
+    <input type="hidden" id="modalEditId">
+    <div class="btn-row">
+      <button class="cancel" onclick="closeModal()">取消</button>
+      <button class="confirm" onclick="saveTask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// === 数据管理 ===
+const STORAGE_KEY = 'jishirili_tasks';
+let tasks = [];
+let currentYear, currentMonth, selectedDay;
+
+function loadTasks() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  tasks = raw ? JSON.parse(raw) : [];
+  // 清理旧数据格式
+  tasks = tasks.map(t => ({
+    id: t.id || Date.now() + Math.random(),
+    title: t.title || '',
+    date: t.date || '',
+    time: t.time || '',
+    note: t.note || '',
+    completed: !!t.completed,
+    completedAt: t.completedAt || null,
+    createdAt: t.createdAt || new Date().toISOString()
+  }));
+  saveTasks();
+}
+
+function saveTasks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+
+function addTask(title, date, time, note) {
+  tasks.push({
+    id: Date.now() + Math.random(),
+    title, date, time, note,
+    completed: false,
+    completedAt: null,
+    createdAt: new Date().toISOString()
+  });
+  saveTasks();
+}
+
+function completeTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) {
+    t.completed = !t.completed;
+    t.completedAt = t.completed ? new Date().toISOString() : null;
+    saveTasks();
+  }
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+}
+
+function getTasksForDay(dateStr) {
+  return tasks.filter(t => t.date === dateStr && !t.completed);
+}
+
+function getTasksForMonth(year, month) {
+  return tasks.filter(t => {
+    if (!t.date || t.completed) return false;
+    const d = new Date(t.date);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+}
+
+function hasTasksOnDay(dateStr) {
+  return tasks.some(t => t.date === dateStr && !t.completed);
+}
+
+// === Toast ===
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// === Tab 切换 ===
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelector('.bottom-nav button[data-tab="' + tab + '"]').classList.add('active');
+  if (tab === 'calendar') renderCalendar();
+  if (tab === 'countdown') renderCountdown();
+  if (tab === 'tasks') renderTasks();
+  if (tab === 'history') renderHistory();
+}
+
+// === 渲染日历 ===
+function renderCalendar() {
+  const today = new Date();
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay = new Date(currentYear, currentMonth + 1, 0);
+  const totalDays = lastDay.getDate();
+  const startWeekday = (firstDay.getDay() + 6) % 7; // Mon=0
+  const monthTasks = getTasksForMonth(currentYear, currentMonth);
+
+  document.getElementById('monthLabel').textContent = currentYear + '年' + (currentMonth + 1) + '月';
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  // 空单元格
+  for (let i = 0; i < startWeekday; i++) {
+    grid.appendChild(createCell('', 'empty'));
+  }
+
+  // 日期单元格
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = formatDate(currentYear, currentMonth, d);
+    const isToday = d === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+    const hasTasks = hasTasksOnDay(dateStr);
+    const isSelected = dateStr === selectedDay;
+
+    let cls = isToday ? 'today' : '';
+    if (isSelected) cls += ' selected';
+
+    const cell = createCell(d, cls);
+    // 任务标记点
+    if (hasTasks) {
+      const dots = document.createElement('div');
+      dots.className = 'dots';
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dots.appendChild(dot);
+      cell.appendChild(dots);
+    }
+    cell.onclick = () => selectDay(dateStr);
+    grid.appendChild(cell);
+  }
+  updateSelectedDayInfo();
+}
+
+function createCell(text, cls) {
+  const div = document.createElement('div');
+  div.className = 'cell ' + (cls || '');
+  const num = document.createElement('span');
+  num.textContent = text;
+  div.appendChild(num);
+  return div;
+}
+
+function selectDay(dateStr) {
+  selectedDay = dateStr;
+  renderCalendar();
+  updateSelectedDayInfo();
+}
+
+function updateSelectedDayInfo() {
+  const info = document.getElementById('selectedDayInfo');
+  if (!selectedDay) {
+    info.innerHTML = '<div style="color:var(--text3);font-size:13px">点击日历上的日期查看或添加事项</div>';
+    return;
+  }
+  const dayTasks = tasks.filter(t => t.date === selectedDay);
+  const pending = dayTasks.filter(t => !t.completed);
+  const done = dayTasks.filter(t => t.completed);
+
+  let html = '<div style="font-weight:700;font-size:15px;margin-bottom:8px">' + selectedDay + '</div>';
+  if (pending.length) {
+    html += '<div style="font-size:13px;color:var(--danger);margin-bottom:4px">待完成 (' + pending.length + ')</div>';
+    pending.forEach(t => {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'
+        + '<span onclick="completeTask(' + t.id + ');renderCalendar()" style="width:20px;height:20px;border:2px solid var(--border);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0" title="完成">✓</span>'
+        + '<span style="flex:1;font-size:14px">' + escapeHtml(t.title) + '</span>'
+        + '<span onclick="deleteTask(' + t.id + ');renderCalendar()" style="color:var(--text3);cursor:pointer;font-size:16px">×</span>'
+        + '</div>';
+    });
+  }
+  if (done.length) {
+    html += '<div style="font-size:13px;color:var(--success);margin:8px 0 4px">已完成 (' + done.length + ')</div>';
+    done.forEach(t => {
+      html += '<div style="font-size:13px;color:var(--text3);padding:4px 0;text-decoration:line-through">' + escapeHtml(t.title) + '</div>';
+    });
+  }
+  html += '<button onclick="openAddModal(\'' + selectedDay + '\')" style="margin-top:10px;width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">+ 添加事项</button>';
+  info.innerHTML = html;
+}
+
+function prevMonth() {
+  if (currentMonth === 0) { currentMonth = 11; currentYear--; }
+  else currentMonth--;
+  selectedDay = null;
+  renderCalendar();
+}
+
+function nextMonth() {
+  if (currentMonth === 11) { currentMonth = 0; currentYear++; }
+  else currentMonth++;
+  selectedDay = null;
+  renderCalendar();
+}
+
+// === 渲染倒计时 ===
+function renderCountdown() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const upcoming = tasks
+    .filter(t => t.date && !t.completed)
+    .map(t => {
+      const due = new Date(t.date + (t.time ? 'T' + t.time : 'T00:00'));
+      const diff = due.getTime() - today.getTime();
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      return { ...t, days };
+    })
+    .sort((a, b) => a.days - b.days);
+
+  // 更新 banner
+  const banner = document.getElementById('banner');
+  if (upcoming.length > 0) {
+    banner.style.display = 'block';
+    const next = upcoming[0];
+    document.getElementById('bannerTitle').textContent = next.title;
+    if (next.days < 0) {
+      document.getElementById('bannerDays').innerHTML = '已过期<span>' + Math.abs(next.days) + '天</span>';
+    } else if (next.days === 0) {
+      document.getElementById('bannerDays').innerHTML = '今天<span>!</span>';
+    } else {
+      document.getElementById('bannerDays').innerHTML = next.days + '<span>天</span>';
+    }
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // 倒计时列表
+  const list = document.getElementById('countdownList');
+  if (upcoming.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div class="msg">暂无倒计时<br>去日历添加一个待办事项吧</div></div>';
+    return;
+  }
+  list.innerHTML = upcoming.map(t => {
+    let leftCls, leftNum, leftUnit;
+    if (t.days < 0) { leftCls = 'urgent'; leftNum = Math.abs(t.days); leftUnit = '天前'; }
+    else if (t.days === 0) { leftCls = 'soon'; leftNum = '今天'; leftUnit = ''; }
+    else if (t.days <= 3) { leftCls = 'soon'; leftNum = t.days; leftUnit = '天'; }
+    else { leftCls = 'normal'; leftNum = t.days; leftUnit = '天'; }
+    return '<div class="countdown-card">'
+      + '<div class="left ' + leftCls + '"><span class="n">' + leftNum + '</span><span class="nu">' + leftUnit + '</span></div>'
+      + '<div class="info"><div class="t">' + escapeHtml(t.title) + '</div><div class="d">📅 ' + t.date + (t.time ? ' ' + t.time : '') + '</div></div>'
+      + '<div class="check" onclick="completeTask(' + t.id + ');renderCountdown();renderCalendar();renderTasks();renderHistory();updateBanner();showToast(\'已完成！\')" title="完成">✔️</div>'
+      + '</div>';
+  }).join('');
+}
+
+function updateBanner() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = tasks
+    .filter(t => t.date && !t.completed)
+    .map(t => {
+      const due = new Date(t.date + (t.time ? 'T' + t.time : 'T00:00'));
+      const diff = due.getTime() - today.getTime();
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      return { ...t, days };
+    })
+    .sort((a, b) => a.days - b.days);
+  const banner = document.getElementById('banner');
+  if (upcoming.length > 0) {
+    banner.style.display = 'block';
+    const next = upcoming[0];
+    document.getElementById('bannerTitle').textContent = next.title;
+    if (next.days < 0) {
+      document.getElementById('bannerDays').innerHTML = '已过期<span>' + Math.abs(next.days) + '天</span>';
+    } else if (next.days === 0) {
+      document.getElementById('bannerDays').innerHTML = '今天<span>!</span>';
+    } else {
+      document.getElementById('bannerDays').innerHTML = next.days + '<span>天</span>';
+    }
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// === 渲染待办列表 ===
+function renderTasks() {
+  const pending = tasks.filter(t => !t.completed).sort((a, b) => {
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+  const list = document.getElementById('taskList');
+  if (pending.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="msg">暂无待办事项<br>去日历添加一个吧</div></div>';
+    return;
+  }
+  list.innerHTML = pending.map(t => {
+    const dateStr = t.date ? formatDisplayDate(t.date) + (t.time ? ' ' + t.time : '') : '无日期';
+    return '<div class="task-item">'
+      + '<div class="cb" onclick="completeTask(' + t.id + ');renderTasks();renderCalendar();renderCountdown();renderHistory();updateBanner();showToast(\'已完成！\')">✓</div>'
+      + '<div class="info"><div class="t">' + escapeHtml(t.title) + '</div><div class="d">📅 ' + dateStr + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div></div>'
+      + '<div class="del" onclick="if(confirm(\'删除这条待办？\')){deleteTask(' + t.id + ');renderTasks();renderCalendar();renderCountdown();updateBanner();showToast(\'已删除\')}">×</div>'
+      + '</div>';
+  }).join('');
+}
+
+// === 渲染记录 ===
+function renderHistory() {
+  const done = tasks.filter(t => t.completed).sort((a, b) => {
+    const da = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+    const db = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+    return db - da;
+  });
+  const list = document.getElementById('historyList');
+  if (done.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📝</div><div class="msg">暂无完成记录<br>完成一个待办后就会出现在这里</div></div>';
+    return;
+  }
+  list.innerHTML = done.map(t => {
+    const doneDate = t.completedAt ? formatDisplayDate(t.completedAt.slice(0, 10)) : '未知';
+    return '<div class="history-item">'
+      + '<div class="icon">✅</div>'
+      + '<div class="info"><div class="t">' + escapeHtml(t.title) + '</div><div class="d">计划：' + formatDisplayDate(t.date) + ' · 完成于：' + doneDate + '</div></div>'
+      + '<div class="del" style="font-size:22px;color:var(--primary);cursor:pointer" onclick="completeTask(' + t.id + ');renderHistory();renderTasks();renderCalendar();renderCountdown();showToast(\'已恢复\')" title="恢复">↩</div>'
+      + '</div>';
+  }).join('');
+}
+
+// === Modal ===
+function openAddModal(dateStr) {
+  document.getElementById('modalTitle').textContent = '添加事项';
+  document.getElementById('modalTaskTitle').value = '';
+  document.getElementById('modalTaskDate').value = dateStr || '';
+  document.getElementById('modalTaskTime').value = '';
+  document.getElementById('modalTaskNote').value = '';
+  document.getElementById('modalEditId').value = '';
+  document.getElementById('modalOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('modalTaskTitle').focus(), 300);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function saveTask() {
+  const title = document.getElementById('modalTaskTitle').value.trim();
+  const date = document.getElementById('modalTaskDate').value;
+  const time = document.getElementById('modalTaskTime').value;
+  const note = document.getElementById('modalTaskNote').value.trim();
+  const editId = document.getElementById('modalEditId').value;
+
+  if (!title) { showToast('请输入事项名称'); return; }
+  if (!date) { showToast('请选择日期'); return; }
+
+  if (editId) {
+    const t = tasks.find(t => t.id === parseInt(editId));
+    if (t) {
+      t.title = title;
+      t.date = date;
+      t.time = time;
+      t.note = note;
+      saveTasks();
+    }
+  } else {
+    addTask(title, date, time, note);
+  }
+
+  closeModal();
+  renderCalendar();
+  renderCountdown();
+  renderTasks();
+  updateBanner();
+  showToast(editId ? '已更新' : '已添加');
+}
+
+function addQuickTask() {
+  const input = document.getElementById('quickTaskInput');
+  const title = input.value.trim();
+  if (!title) return;
+  const today = new Date();
+  const dateStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+  addTask(title, dateStr, '', '');
+  input.value = '';
+  renderTasks();
+  renderCalendar();
+  renderCountdown();
+  updateBanner();
+  showToast('已添加');
+  input.focus();
+}
+
+// === 工具函数 ===
+function formatDate(year, month, day) {
+  return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+}
+
+function formatDisplayDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return y + '年' + parseInt(m) + '月' + parseInt(d) + '日';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// === 键盘事件 ===
+document.getElementById('quickTaskInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') addQuickTask();
+});
+
+// === 初始化 ===
+function init() {
+  loadTasks();
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+  selectedDay = null;
+  document.getElementById('todayDisplay').textContent =
+    today.getFullYear() + '年' + (today.getMonth() + 1) + '月' + today.getDate() + '日 · 星期' + ['日','一','二','三','四','五','六'][today.getDay()];
+  renderCalendar();
+  updateBanner();
+}
+
+init();
+
+// === 注册 Service Worker (PWA) ===
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// === 通知检查（每分钟检查一次，有今天到期的任务就通知）===
+let notifiedToday = {};
+function checkNotifications() {
+  if (!('Notification' in window)) return;
+  const today = new Date();
+  const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+  // 避免重复通知
+  if (notifiedToday[todayStr]) return;
+  const dueToday = tasks.filter(t => t.date === todayStr && !t.completed);
+  if (dueToday.length > 0) {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') {
+        notifiedToday[todayStr] = true;
+        if (dueToday.length === 1) {
+          new Notification('记事日历提醒', { body: '今天：' + dueToday[0].title, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%235B8DEF"/><text x="50" y="68" font-size="50" text-anchor="middle" fill="white">📅</text></svg>' });
+        } else {
+          new Notification('记事日历提醒', { body: '今天有 ' + dueToday.length + ' 个待办事项', icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%235B8DEF"/><text x="50" y="68" font-size="50" text-anchor="middle" fill="white">📅</text></svg>' });
+        }
+      }
+    });
+  }
+}
+setInterval(checkNotifications, 60000);
+checkNotifications();
+</script>
+</body>
+</html>
