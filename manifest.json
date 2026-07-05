@@ -1,0 +1,18 @@
+{
+  "name": "记事日历",
+  "short_name": "记事日历",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#5B8DEF",
+  "background_color": "#F0F4F8",
+  "description": "日历、倒计时、任务记录一应俱全",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
